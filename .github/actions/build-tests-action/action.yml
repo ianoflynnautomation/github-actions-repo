@@ -1,0 +1,46 @@
+name: Build Test Projects
+description: 'Builds the test projects and publishes the output'
+
+inputs:
+  dotnet-version:
+    description: 'The version of the .Net Core SDK to use'
+    required: true
+  artifact-name:
+    description: 'The name of the artifact to publish'
+    required: true
+  project-pattern:
+    description: 'The pattern to use to find the test projects'
+    required: true
+  solution-name:
+    description: 'The name of the solution'
+    required: true
+  
+runs:
+  using: "composite"
+  steps:
+
+    - name: 'Set Dotnet Version ${{ inputs.dotnet-version }}'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: Install Dependencies
+      shell: bash
+      run: dotnet restore ${{ inputs.solution-name }}
+
+    - name: Build Solution
+      shell: bash
+      run: |
+        dotnet build ${{ inputs.solution-name }} --configuration Release --no-restore
+
+    - name: Publish Test project
+      shell: bash
+      run:  |
+        dotnet publish --property:PublishDir="${{ github.workspace }}/output" tests/${{ inputs.project-pattern }}
+
+    - name: Publish ${{ inputs.artifact-name }} artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ github.workspace }}/output
+        # retention-days: 1

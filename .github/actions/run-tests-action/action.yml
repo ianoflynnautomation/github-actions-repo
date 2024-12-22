@@ -1,0 +1,54 @@
+name: Run Tests
+description: 'Runs tests and publishes the results'
+
+inputs:
+  dotnet-version:
+    description: 'The version of the .Net Core SDK to use'
+    required: true
+  test-artifact-name:
+    description: 'The name of the artifact to publish'
+    required: true
+  test-project-pattern:
+    description: 'The pattern to use to find the test projects'
+    required: true
+  test-filter-criteria:
+    description: 'The filter criteria to use to run the tests'
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Download ${{ inputs.test-artifact-name }} Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.test-artifact-name }}
+        path: artifacts
+        pattern: ${{ inputs.test-project-pattern }}   
+
+    - name: 'Set Dotnet Version ${{ inputs.dotnet-version }}'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }} 
+
+    - name: Run Tests
+      shell: bash
+      working-directory: artifacts
+      run: dotnet test *Tests.dll --no-build --logger "trx;LogFileName=test_results_${{ inputs.test-artifact-name }}.trx" --results-directory ${{ github.workspace }}/TestResults ${{ inputs.test-filter-criteria }}
+    
+    - name: Publish Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test_results_${{ inputs.test-artifact-name }}
+        path: ${{ github.workspace }}/TestResults
+    
+    - uses: dorny/test-reporter@v1
+      with:
+        artifact: test_results_${{ inputs.test-artifact-name }}
+        name: test_results_${{ inputs.test-artifact-name }}
+        path: '*.trx'
+        reporter: dotnet-trx
+
+
+    
+
